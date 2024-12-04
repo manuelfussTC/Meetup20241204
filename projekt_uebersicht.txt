@@ -1,0 +1,1819 @@
+##### Pfad: ./index.html #####
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
+
+##### Pfad: ./tailwind.config.js #####
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+
+
+
+##### Pfad: ./eslint.config.js #####
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  { ignores: ['dist'] },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  }
+);
+
+
+
+##### Pfad: ./vite.config.ts #####
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  optimizeDeps: {
+    exclude: ['lucide-react'],
+  },
+});
+
+
+
+##### Pfad: ./postcss.config.js #####
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+
+
+##### Pfad: ./src/App.tsx #####
+import React, { useState } from 'react';
+import { Brain, Image, MessageSquare, Mic, Shield, Volume2 } from 'lucide-react';
+import { TabNavigation } from './components/TabNavigation';
+import { DemoCard } from './components/DemoCard';
+import { TabProps } from './types';
+
+interface DemoData {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  output: any;
+  loading: boolean;
+  outputType: 'image' | 'audio' | 'transcription' | 'moderation' | 'chat' | 'embedding';
+}
+
+const initialDemos: DemoData[] = [
+  {
+    id: 'dalle',
+    title: 'DALL-E 3 Image Generation',
+    description: 'Generate high-quality images with the latest DALL-E 3 model. Create vivid or natural style images with detailed prompts.',
+    code: `const response = await fetch('https://api.openai.com/v1/images/generations', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: JSON.stringify({
+    model: "dall-e-3",
+    prompt: "A mystical library at night with floating books and glowing crystals",
+    n: 1,
+    size: "1024x1024",
+    quality: "hd",
+    style: "vivid"
+  })
+});`,
+    output: null,
+    loading: false,
+    outputType: 'image'
+  },
+  {
+    id: 'tts',
+    title: 'Text-to-Speech (HD)',
+    description: 'Convert text to ultra-realistic speech using the new TTS-1-HD model. Choose from multiple voices and adjust speaking speed.',
+    code: `const response = await fetch('https://api.openai.com/v1/audio/speech', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: JSON.stringify({
+    model: "tts-1-hd",
+    input: "Welcome to the future of AI! This is a demonstration of ultra-realistic text-to-speech.",
+    voice: "nova",
+    speed: 1.0
+  })
+});`,
+    output: null,
+    loading: false,
+    outputType: 'audio'
+  },
+  {
+    id: 'whisper',
+    title: 'Whisper Transcription',
+    description: 'Transcribe audio with high accuracy using the Whisper model. Supports multiple languages and provides timestamps.',
+    code: `const formData = new FormData();
+formData.append('file', audioFile);
+formData.append('model', 'whisper-1');
+formData.append('language', 'en');
+formData.append('response_format', 'verbose_json');
+formData.append('timestamp_granularities', ['word', 'segment']);
+
+const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: formData
+});`,
+    output: null,
+    loading: false,
+    outputType: 'transcription'
+  },
+  {
+    id: 'moderation',
+    title: 'Content Moderation',
+    description: 'Check content against OpenAI\'s latest moderation guidelines. Get detailed scores for different content categories.',
+    code: `const response = await fetch('https://api.openai.com/v1/moderations', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: JSON.stringify({
+    model: "omni-moderation-latest",
+    input: "Text to analyze for content policy compliance"
+  })
+});`,
+    output: null,
+    loading: false,
+    outputType: 'moderation'
+  },
+  {
+    id: 'gpt4',
+    title: 'GPT-4 Chat',
+    description: 'Experience the latest GPT-4 model with improved context understanding and task performance.',
+    code: `const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: JSON.stringify({
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: "What is the capital of France?" }
+    ],
+    max_tokens: 150
+  })
+});`,
+    output: null,
+    loading: false,
+    outputType: 'chat'
+  },
+  {
+    id: 'embedding',
+    title: 'Text Embeddings',
+    description: 'Generate vector representations of text using the latest embedding models for semantic analysis and similarity comparisons.',
+    code: `const response = await fetch('https://api.openai.com/v1/embeddings', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $OPENAI_API_KEY'
+  },
+  body: JSON.stringify({
+    model: "text-embedding-3-small",
+    input: "The quick brown fox jumps over the lazy dog",
+    encoding_format: "float"
+  })
+});`,
+    output: null,
+    loading: false,
+    outputType: 'embedding'
+  }
+];
+
+const tabs: TabProps[] = [
+  { id: 'image', label: 'Image', icon: Image, content: null },
+  { id: 'speech', label: 'Speech', icon: Volume2, content: null },
+  { id: 'transcription', label: 'Transcription', icon: Mic, content: null },
+  { id: 'moderation', label: 'Moderation', icon: Shield, content: null },
+  { id: 'chat', label: 'Chat', icon: MessageSquare, content: null },
+  { id: 'embedding', label: 'Embedding', icon: Brain, content: null },
+];
+
+const mockApiResponses = {
+  dalle: {
+    url: "/examples/mystical-library.jpeg",
+    revised_prompt: "A mystical library at night with floating books and glowing crystals, featuring ancient tomes suspended in mid-air, illuminated by ethereal crystal formations casting a magical blue-purple light throughout the space. Digital art style with intricate details and dramatic lighting."
+  },
+  tts: {
+    audio_url: "/examples/demo-speech.mp3",
+    duration: 3.5
+  },
+  whisper: {
+    text: "Welcome to the future of AI speech recognition. This technology can understand multiple languages and accents with remarkable accuracy.",
+    confidence: 0.98,
+    language: "en",
+    words: [
+      { word: "Welcome", start: 0.0, end: 0.5, confidence: 0.99 },
+      { word: "to", start: 0.5, end: 0.7, confidence: 0.98 }
+    ]
+  },
+  moderation: {
+    id: "modr-12345",
+    model: "omni-moderation-latest",
+    results: [{
+      flagged: false,
+      categories: {
+        harassment: false,
+        "harassment/threatening": false,
+        hate: false,
+        "hate/threatening": false,
+        "self-harm": false,
+        sexual: false,
+        "sexual/minors": false,
+        violence: false,
+        "violence/graphic": false
+      },
+      category_scores: {
+        harassment: 0.0001,
+        "harassment/threatening": 0.0001,
+        hate: 0.0001,
+        "hate/threatening": 0.0001,
+        "self-harm": 0.0001,
+        sexual: 0.0001,
+        "sexual/minors": 0.0001,
+        violence: 0.0001,
+        "violence/graphic": 0.0001
+      }
+    }]
+  },
+  gpt4: {
+    choices: [{
+      message: {
+        role: "assistant",
+        content: "The capital of France is Paris. It's often called the 'City of Light' (Ville Lumière) and is known for its iconic landmarks like the Eiffel Tower, Louvre Museum, and Notre-Dame Cathedral."
+      }
+    }]
+  },
+  embedding: {
+    model: "text-embedding-3-small",
+    embeddings: Array.from({ length: 1536 }, () => (Math.random() * 2 - 1) * 0.1),
+    dimensions: 1536
+  }
+};
+
+function App() {
+  const [activeTab, setActiveTab] = useState('image');
+  const [demos, setDemos] = useState<DemoData[]>(initialDemos);
+
+  const handleRun = async (id: string) => {
+    setDemos(prev => prev.map(demo =>
+        demo.id === id ? { ...demo, loading: true } : demo
+    ));
+
+    const minDelay = 800;
+    const maxDelay = 2000;
+    const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+    setDemos(prev => prev.map(demo => {
+      if (demo.id === id) {
+        const response = mockApiResponses[demo.id as keyof typeof mockApiResponses];
+        return {
+          ...demo,
+          loading: false,
+          output: response
+        };
+      }
+      return demo;
+    }));
+  };
+
+  const filteredDemos = demos.filter(demo => {
+    switch (activeTab) {
+      case 'image':
+        return demo.id === 'dalle';
+      case 'speech':
+        return demo.id === 'tts';
+      case 'transcription':
+        return demo.id === 'whisper';
+      case 'moderation':
+        return demo.id === 'moderation';
+      case 'chat':
+        return demo.id === 'gpt4';
+      case 'embedding':
+        return demo.id === 'embedding';
+      default:
+        return false;
+    }
+  });
+
+  return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <h1 className="text-3xl font-bold text-gray-900">OpenAI Capabilities Demo</h1>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <TabNavigation
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+          />
+
+          <div className="mt-8 grid gap-6 grid-cols-1">
+            {filteredDemos.map(demo => (
+                <DemoCard
+                    key={demo.id}
+                    data={demo}
+                    onRun={handleRun}
+                />
+            ))}
+          </div>
+        </main>
+      </div>
+  );
+}
+
+export default App;
+
+
+##### Pfad: ./src/main.tsx #####
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+
+
+
+##### Pfad: ./src/types/index.ts #####
+export interface DemoData {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  output: any;
+  loading: boolean;
+  outputType: 'image' | 'audio' | 'transcription' | 'moderation' | 'chat' | 'embedding';
+}
+
+export interface DemoComponentProps {
+  output: any;
+}
+
+export interface TabProps {
+  id: string;
+  label: string;
+  icon: React.ComponentType;
+  content: React.ReactNode;
+}
+
+
+##### Pfad: ./src/index.css #####
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply text-gray-900 bg-gray-50;
+    }
+
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-gray-100 rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+    }
+}
+
+@layer components {
+    /* Card transitions */
+    .card-transition {
+        @apply transition-all duration-200 ease-in-out;
+    }
+
+    /* Processing steps animation */
+    .processing-step {
+        @apply transition-all duration-300 ease-in-out;
+    }
+
+    /* Code block styling */
+    .code-block {
+        @apply font-mono text-sm bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto;
+    }
+
+    /* Custom audio player styling */
+    audio {
+        @apply w-full focus:outline-none;
+    }
+
+    audio::-webkit-media-controls-panel {
+        @apply bg-white;
+    }
+
+    audio::-webkit-media-controls-play-button {
+        @apply bg-blue-500 rounded-full hover:bg-blue-600 transition-colors;
+    }
+
+    audio::-webkit-media-controls-current-time-display,
+    audio::-webkit-media-controls-time-remaining-display {
+        @apply text-gray-700;
+    }
+
+    /* Custom range input styling */
+    input[type="range"] {
+        @apply appearance-none bg-gray-200 h-2 rounded-lg;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        @apply appearance-none w-4 h-4 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors;
+    }
+
+    /* Button hover effects */
+    .button-hover {
+        @apply transform hover:scale-105 transition-transform duration-200;
+    }
+
+    /* Tab hover effects */
+    .tab-hover {
+        @apply hover:bg-gray-50 transition-colors duration-200;
+    }
+
+    /* Loader animation */
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    /* Fade in animation */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    /* Example card hover effects */
+    .example-card {
+        @apply transition-all duration-200 ease-in-out hover:shadow-md;
+    }
+
+    .example-card:hover img {
+        @apply transform scale-105 transition-transform duration-200;
+    }
+}
+
+/* Responsive adjustments */
+@screen sm {
+    .demo-grid {
+        @apply grid-cols-2;
+    }
+}
+
+@screen lg {
+    .demo-grid {
+        @apply grid-cols-3;
+    }
+}
+
+
+##### Pfad: ./src/components/DemoCard.tsx #####
+import { useState } from 'react';
+import { CodeBlock } from './CodeBlock';
+import { DemoData } from '../types';
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ProcessingSteps } from './demos/common/ProcessingSteps';
+import { ImageDemo } from './demos/ImageDemo';
+import { AudioDemo } from './demos/AudioDemo';
+import { TranscriptionDemo } from './demos/TranscriptionDemo';
+import { ModerationDemo } from './demos/ModerationDemo';
+import { ChatDemo } from './demos/ChatDemo';
+import { EmbeddingDemo } from './demos/EmbeddingDemo';
+import { PROCESSING_STEPS } from './demos/processingSteps';
+
+interface DemoCardProps {
+    data: DemoData;
+    onRun: (id: string) => void;
+}
+
+export function DemoCard({ data, onRun }: DemoCardProps) {
+    const [expanded, setExpanded] = useState(false);
+    const [processingStep, setProcessingStep] = useState(-1);
+    const [processingCompleted, setProcessingCompleted] = useState(false);
+
+    const steps = PROCESSING_STEPS[data.outputType] || [];
+
+    const handleRun = async () => {
+        setProcessingStep(0);
+        setProcessingCompleted(false);
+
+        for (let i = 0; i < steps.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            setProcessingStep(i);
+        }
+
+        onRun(data.id);
+        setProcessingCompleted(true);
+    };
+
+    const renderDemo = () => {
+        const props = {
+            output: data.output
+        };
+
+        switch (data.outputType) {
+            case 'image':
+                return <ImageDemo {...props} />;
+            case 'audio':
+                return <AudioDemo {...props} />;
+            case 'transcription':
+                return <TranscriptionDemo {...props} />;
+            case 'moderation':
+                return <ModerationDemo {...props} />;
+            case 'chat':
+                return <ChatDemo {...props} />;
+            case 'embedding':
+                return <EmbeddingDemo {...props} />;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <div className="p-6">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="text-xl font-semibold text-gray-900">{data.title}</h3>
+                        <p className="mt-2 text-gray-600">{data.description}</p>
+                    </div>
+                </div>
+
+                <div className="mt-4">
+                    <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                    >
+                        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        <span className="ml-1">{expanded ? 'Hide Code' : 'Show Code'}</span>
+                    </button>
+
+                    {expanded && (
+                        <div className="mt-4">
+                            <CodeBlock code={data.code} />
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-6">
+                    <button
+                        onClick={handleRun}
+                        disabled={data.loading || (processingStep !== -1 && !processingCompleted)}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700
+                     disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2
+                     transition-colors duration-200"
+                    >
+                        {data.loading && <Loader2 size={16} className="animate-spin" />}
+                        {processingStep === -1 ? 'Run Demo' : 'Processing...'}
+                    </button>
+                </div>
+
+                {processingStep !== -1 && steps && steps.length > 0 && (
+                    <ProcessingSteps
+                        steps={steps}
+                        currentStep={processingStep}
+                        completed={processingCompleted}
+                    />
+                )}
+
+                {data.output && renderDemo()}
+            </div>
+        </div>
+    );
+}
+
+
+##### Pfad: ./src/components/TabNavigation.tsx #####
+import { clsx } from 'clsx';
+import { TabProps } from '../types';
+
+interface TabNavigationProps {
+  tabs: TabProps[];
+  activeTab: string;
+  onTabChange: (id: string) => void;
+}
+
+export function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
+  return (
+    <div className="border-b border-gray-200">
+      <nav className="flex space-x-8" aria-label="Tabs">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={clsx(
+                'flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm',
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              <Icon size={20} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+
+##### Pfad: ./src/components/demos/ModerationDemo/index.tsx #####
+import { DemoComponentProps } from '../../../types';
+
+export const ModerationDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="space-y-2">
+          {output.results[0].categories && Object.entries(output.results[0].categories).map(([category, flagged]) => (
+              <div key={category} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{category}</span>
+                <span className={`text-sm ${flagged ? 'text-red-600' : 'text-green-600'}`}>
+              {String(flagged)}
+            </span>
+              </div>
+          ))}
+        </div>
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/ModerationDemo/ModerationDemoOutput.tsx #####
+export const ModerationOutput = ({ data }: { data: { results: Array<any> } }) => (
+    <div className="mt-4 space-y-4">
+        {data.results.map((result, index) => (
+            <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                <div className="space-y-3">
+                    <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">Flagged Categories</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(result.categories).map(([category, flagged]) => (
+                                <div key={category} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">{category}</span>
+                                    <span className={`text-sm ${flagged ? 'text-red-600' : 'text-green-600'}`}>
+                    {String(flagged)}
+                  </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">Category Scores</h4>
+                        <div className="space-y-2">
+                            {Object.entries(result.category_scores).map(([category, score]) => (
+                                <div key={category} className="relative">
+                                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                        <span>{category}</span>
+                                        <span>{(Number(score) * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-gray-200 rounded-full">
+                                        <div
+                                            className="h-2 bg-blue-500 rounded-full"
+                                            style={{ width: `${Number(score) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+
+
+##### Pfad: ./src/components/demos/ModerationDemo/ModerationDemoOptions.tsx #####
+// ModerationOptions.tsx
+interface ModerationOptionsProps {
+  options: {
+    input: string;
+  };
+  examples: Array<{ text: string; description: string; }>;
+  onChange: (options: any) => void;
+}
+
+export const ModerationOptions = ({ options, examples, onChange }: ModerationOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Text to Analyze</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={4}
+            value={options.input}
+            onChange={(e) => onChange({ ...options, input: e.target.value })}
+            placeholder="Enter text to analyze for content moderation..."
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Example Texts</label>
+        <div className="grid grid-cols-2 gap-2">
+          {examples.map((example, index) => (
+              <button
+                  key={index}
+                  className="p-2 text-left text-sm border border-gray-200 rounded-lg hover:border-blue-500"
+                  onClick={() => onChange({ ...options, input: example.text })}
+              >
+                <strong className="block text-gray-700">{example.description}</strong>
+                <span className="text-gray-500 text-xs">{example.text}</span>
+              </button>
+          ))}
+        </div>
+      </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/common/ExamplePrompts.tsx #####
+interface Example {
+    description: string;
+    prompt?: string;
+    text?: string;
+    voice?: string;
+    imagePath?: string;
+}
+
+interface ExamplePromptsProps {
+    type: 'image' | 'audio' | 'chat' | 'transcription';
+    examples: Example[];
+    onSelect: (example: Example) => void;
+}
+
+export const ExamplePrompts = ({ type, examples, onSelect }: ExamplePromptsProps) => (
+    <div className="mt-4 space-y-3">
+        <h4 className="text-sm font-medium text-gray-700">Example Prompts</h4>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            {examples.map((example, index) => (
+                <div
+                    key={index}
+                    onClick={() => onSelect(example)}
+                    className="cursor-pointer group p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 transition-all"
+                >
+                    {type === 'image' && example.imagePath && (
+                        <div className="mb-2 rounded-md overflow-hidden">
+                            <img
+                                src={example.imagePath}
+                                alt={example.description}
+                                className="w-full h-32 object-cover transform group-hover:scale-105 transition-transform duration-200"
+                            />
+                        </div>
+                    )}
+                    <div>
+                        <h5 className="text-sm font-medium text-gray-900 mb-1">{example.description}</h5>
+                        <p className="text-sm text-gray-600">
+                            {type === 'image' ? example.prompt : example.text}
+                        </p>
+                        {type === 'audio' && example.voice && (
+                            <p className="text-xs text-gray-500 mt-1">Voice: {example.voice}</p>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/common/ProcessingSteps.tsx #####
+import { Check, Loader2, HelpCircle } from 'lucide-react';
+
+interface ProcessingStep {
+    label: string;
+    tooltip: string;
+}
+
+interface ProcessingStepsProps {
+    steps: ProcessingStep[];
+    currentStep: number;
+    completed: boolean;
+}
+
+export const ProcessingSteps = ({ steps, currentStep, completed }: ProcessingStepsProps) => {
+    if (!steps || steps.length === 0) return null;
+
+    return (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Processing Status</h4>
+            <div className="space-y-2">
+                {steps.map((step, index) => (
+                    <div key={step.label} className="group relative flex items-center space-x-2">
+                        {index === currentStep && !completed ? (
+                            <Loader2 size={16} className="animate-spin text-blue-500" />
+                        ) : index <= currentStep ? (
+                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                <Check size={12} className="text-white" />
+                            </div>
+                        ) : (
+                            <div className="w-4 h-4 rounded-full border border-gray-300" />
+                        )}
+                        <span className={`text-sm ${
+                            index === currentStep ? 'text-blue-500 font-medium' :
+                                index < currentStep ? 'text-gray-500' : 'text-gray-400'
+                        }`}>
+              {step.label}
+            </span>
+
+                        {/* Tooltip container with relative positioning */}
+                        <div className="relative inline-block">
+                            {/* Tooltip trigger */}
+                            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <HelpCircle size={14} className="text-gray-400 hover:text-gray-600" />
+                            </button>
+
+                            {/* Tooltip content - now positioned above */}
+                            <div className="absolute bottom-full right-0 mb-2 ml-2 left-1 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-10">
+                                {step.tooltip}
+                                {/* Tooltip arrow */}
+                                <div className="absolute bottom-[-6px] left-2 w-3 h-3 bg-gray-900 transform rotate-45"></div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+##### Pfad: ./src/components/demos/EmbeddingDemo/index.tsx #####
+import { DemoComponentProps } from '../../../types';
+
+export const EmbeddingDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  // Nehmen Sie die ersten 20 Dimensionen für die Visualisierung
+  const displayDimensions = output.embeddings.slice(0, 20);
+  const maxValue = Math.max(...displayDimensions.map(Math.abs));
+
+  return (
+      <div className="mt-4 space-y-4">
+        {/* Model Info */}
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <div className="text-sm text-gray-700 font-medium mb-2">
+            Model: {output.model}
+          </div>
+          <div className="text-sm text-gray-600">
+            Generated {output.dimensions}-dimensional embedding vector
+          </div>
+        </div>
+
+        {/* Vector Visualization */}
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <div className="text-sm font-medium text-gray-700 mb-3">
+            First 20 Dimensions Visualization
+          </div>
+          <div className="space-y-2">
+            {displayDimensions.map((value, index) => {
+              const normalizedValue = value / maxValue;
+              const width = Math.abs(normalizedValue) * 100;
+              const isPositive = value >= 0;
+
+              return (
+                  <div key={index} className="flex items-center text-xs">
+                    <span className="w-12 text-gray-500">Dim {index}:</span>
+                    <div className="flex-grow flex items-center">
+                      {!isPositive && (
+                          <div
+                              className="h-2 bg-red-200"
+                              style={{ width: `${width}%`, marginLeft: `${100 - width}%` }}
+                          />
+                      )}
+                      {isPositive && (
+                          <div
+                              className="h-2 bg-blue-200"
+                              style={{ width: `${width}%` }}
+                          />
+                      )}
+                    </div>
+                    <span className="w-20 text-right text-gray-500 ml-2">
+                  {value.toFixed(4)}
+                </span>
+                  </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Raw Values */}
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <div className="text-sm font-medium text-gray-700 mb-2">Raw Vector</div>
+          <div className="text-xs text-gray-500 font-mono overflow-x-auto whitespace-pre">
+            [
+            {output.embeddings.map((v: number, i: number) => (
+                `\n  ${v.toFixed(6)}${i < output.embeddings.length - 1 ? ',' : ''}`
+            )).join('')}
+            ]
+          </div>
+        </div>
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/EmbeddingDemo/EmbeddingDemoOutput.tsx #####
+export const EmbeddingOutput = ({ data }: { data: { embeddings: number[], dimensions: number } }) => (
+    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-sm font-medium text-gray-900 mb-2">Embedding Visualization</h4>
+        <div className="aspect-w-16 aspect-h-9">
+            <div className="w-full h-full bg-white rounded-lg p-4">
+                {/* Here you could add a visualization of the embedding vectors */}
+                <div className="text-sm text-gray-600">
+                    Generated {data.dimensions}-dimensional embedding vector
+                </div>
+                <div className="mt-2 text-xs text-gray-500 max-h-40 overflow-y-auto">
+                    [{data.embeddings.slice(0, 10).map(v => v.toFixed(4)).join(', ')}, ...]
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/EmbeddingDemo/EmbeddingDemoOptions.tsx #####
+// EmbeddingOptions.tsx
+interface EmbeddingOptionsProps {
+  options: {
+    input: string;
+    model?: string;
+  };
+  examples: Array<{ text: string; description: string; }>;
+  onChange: (options: any) => void;
+}
+
+export const EmbeddingOptions = ({ options, examples, onChange }: EmbeddingOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Input Text</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={4}
+            value={options.input}
+            onChange={(e) => onChange({ ...options, input: e.target.value })}
+            placeholder="Enter text to generate embeddings..."
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Model</label>
+        <select
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={options.model || 'text-embedding-ada-002'}
+            onChange={(e) => onChange({ ...options, model: e.target.value })}
+        >
+          <option value="text-embedding-ada-002">text-embedding-ada-002</option>
+          <option value="text-embedding-3-small">text-embedding-3-small</option>
+          <option value="text-embedding-3-large">text-embedding-3-large</option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          Different models offer different tradeoffs between speed, cost, and quality.
+        </p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Example Texts</label>
+        <div className="grid grid-cols-2 gap-2">
+          {examples.map((example, index) => (
+              <button
+                  key={index}
+                  className="p-2 text-left text-sm border border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
+                  onClick={() => onChange({ ...options, input: example.text })}
+              >
+                <strong className="block text-gray-700">{example.description}</strong>
+                <span className="text-gray-500 text-xs">{example.text}</span>
+              </button>
+          ))}
+        </div>
+      </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/ImageDemo/index.tsx #####
+// ImageDemo/index.tsx
+export const ImageDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  return (
+      <div className="mt-4">
+        <img
+            src={output.url}
+            alt="Generated"
+            className="w-full rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+        />
+        {output.revised_prompt && (
+            <div className="mt-2 text-sm text-gray-600">
+              {output.revised_prompt}
+            </div>
+        )}
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/ImageDemo/ImageDemoOptions.tsx #####
+// ImageOptions.tsx
+interface ImageOptionsProps {
+  options: {
+    prompt: string;
+    size: string;
+    style: string;
+    quality: string;
+  };
+  onChange: (options: any) => void;
+}
+
+export const ImageOptions = ({ options, onChange }: ImageOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Prompt</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={3}
+            value={options.prompt}
+            onChange={(e) => onChange({ ...options, prompt: e.target.value })}
+            placeholder="Describe the image you want to generate..."
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Size</label>
+          <select
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              value={options.size}
+              onChange={(e) => onChange({ ...options, size: e.target.value })}
+          >
+            <option value="1024x1024">Square (1024×1024)</option>
+            <option value="1792x1024">Landscape (1792×1024)</option>
+            <option value="1024x1792">Portrait (1024×1792)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Style</label>
+          <select
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              value={options.style}
+              onChange={(e) => onChange({ ...options, style: e.target.value })}
+          >
+            <option value="vivid">Vivid</option>
+            <option value="natural">Natural</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Quality</label>
+          <select
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              value={options.quality}
+              onChange={(e) => onChange({ ...options, quality: e.target.value })}
+          >
+            <option value="hd">HD</option>
+            <option value="standard">Standard</option>
+          </select>
+        </div>
+      </div>
+    </div>
+);
+
+// AudioOptions.tsx
+interface AudioOptionsProps {
+  options: {
+    input: string;
+    voice: string;
+    speed: number;
+    model?: string;
+  };
+  onChange: (options: any) => void;
+}
+
+export const AudioOptions = ({ options, onChange }: AudioOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Text to Speak</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={3}
+            value={options.input}
+            onChange={(e) => onChange({ ...options, input: e.target.value })}
+            placeholder="Enter the text you want to convert to speech..."
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700">Voice</label>
+          <select
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              value={options.voice}
+              onChange={(e) => onChange({ ...options, voice: e.target.value })}
+          >
+            <option value="alloy">Alloy - Neutral and balanced</option>
+            <option value="echo">Echo - Smooth and natural</option>
+            <option value="fable">Fable - British accent</option>
+            <option value="onyx">Onyx - Deep and authoritative</option>
+            <option value="nova">Nova - Friendly and upbeat</option>
+            <option value="shimmer">Shimmer - Clear and expressive</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Speed</label>
+          <div className="mt-1">
+            <input
+                type="range"
+                min="0.25"
+                max="4.0"
+                step="0.25"
+                value={options.speed}
+                onChange={(e) => onChange({ ...options, speed: parseFloat(e.target.value) })}
+                className="w-full"
+            />
+            <div className="text-sm text-gray-500 mt-1 text-center">{options.speed}x</div>
+          </div>
+        </div>
+      </div>
+    </div>
+);
+
+
+
+##### Pfad: ./src/components/demos/ImageDemo/ImageDemoOutput.tsx #####
+interface ImageOutputProps {
+    data: {
+        url: string;
+        revised_prompt?: string;
+    };
+}
+
+export const ImageOutput = ({ data }: ImageOutputProps) => (
+    <div className="mt-4 space-y-4">
+        <div className="relative group">
+            <img
+                src={data.url}
+                alt="Generated"
+                className="w-full rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+            />
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
+                <a
+                    href={data.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-white/90 rounded-lg text-sm font-medium hover:bg-white transition-colors duration-200"
+                >
+                    View Full Size
+                </a>
+            </div>
+        </div>
+        {data.revised_prompt && (
+            <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Revised Prompt</h4>
+                <p className="text-sm text-gray-600">{data.revised_prompt}</p>
+            </div>
+        )}
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/processingSteps.ts #####
+interface ProcessingStep {
+    label: string;
+    tooltip: string;
+}
+
+export const PROCESSING_STEPS: Record<string, ProcessingStep[]> = {
+    image: [
+        {
+            label: 'Analyzing prompt and generating variations',
+            tooltip: 'DALL-E analyzes your text prompt for key elements, style preferences, and composition details to understand the intended image'
+        },
+        {
+            label: 'Applying style refinements',
+            tooltip: 'Adjusting the visual elements according to the specified style (vivid/natural) and quality settings'
+        },
+        {
+            label: 'Performing safety checks',
+            tooltip: 'Ensuring the generated image complies with content policies and safety guidelines'
+        },
+        {
+            label: 'Finalizing image generation',
+            tooltip: 'Rendering the final high-resolution image and applying post-processing enhancements'
+        }
+    ],
+    audio: [
+        {
+            label: 'Processing text input',
+            tooltip: 'Analyzing text for pronunciation, punctuation, and speech patterns'
+        },
+        {
+            label: 'Applying voice characteristics',
+            tooltip: 'Configuring the selected voice model (Alloy, Echo, Fable, etc.) with the specified characteristics'
+        },
+        {
+            label: 'Generating speech patterns',
+            tooltip: 'Creating natural intonation, emphasis, and rhythm based on the text content'
+        },
+        {
+            label: 'Finalizing audio output',
+            tooltip: 'Rendering the final audio with the specified speed and quality settings'
+        }
+    ],
+    transcription: [
+        {
+            label: 'Processing audio input',
+            tooltip: 'Loading and preprocessing the audio file for optimal recognition'
+        },
+        {
+            label: 'Detecting speech patterns',
+            tooltip: 'Identifying words, phrases, and language characteristics in the audio'
+        },
+        {
+            label: 'Generating timestamped text',
+            tooltip: 'Converting speech to text while maintaining precise timing information'
+        },
+        {
+            label: 'Applying language refinements',
+            tooltip: 'Improving accuracy with language-specific models and contextual understanding'
+        }
+    ],
+    moderation: [
+        {
+            label: 'Analyzing content',
+            tooltip: 'Scanning input text for potential policy violations across multiple categories'
+        },
+        {
+            label: 'Computing category scores',
+            tooltip: 'Calculating confidence scores for each moderation category (harassment, hate speech, etc.)'
+        },
+        {
+            label: 'Evaluating thresholds',
+            tooltip: 'Comparing scores against safety thresholds to determine content acceptability'
+        },
+        {
+            label: 'Generating detailed report',
+            tooltip: 'Compiling comprehensive analysis with category-specific flags and scores'
+        }
+    ],
+    chat: [
+        {
+            label: 'Processing input context',
+            tooltip: 'Analyzing the conversation history and current message for context'
+        },
+        {
+            label: 'Generating response candidates',
+            tooltip: 'Creating multiple potential responses based on the context and input'
+        },
+        {
+            label: 'Applying model parameters',
+            tooltip: 'Refining responses using temperature and other specified settings'
+        },
+        {
+            label: 'Finalizing output',
+            tooltip: 'Selecting and formatting the most appropriate response'
+        }
+    ],
+    embedding: [
+        {
+            label: 'Tokenizing input',
+            tooltip: 'Breaking down input text into tokens for processing'
+        },
+        {
+            label: 'Computing vector representations',
+            tooltip: 'Generating high-dimensional vectors that capture semantic meaning'
+        },
+        {
+            label: 'Optimizing embeddings',
+            tooltip: 'Normalizing and adjusting vectors for optimal similarity comparisons'
+        },
+        {
+            label: 'Preparing visualization',
+            tooltip: 'Converting high-dimensional embeddings into visualizable format'
+        }
+    ]
+};
+
+
+##### Pfad: ./src/components/demos/ChatDemo/index.tsx #####
+import { DemoComponentProps } from '../../../types';
+
+export const ChatDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="prose prose-sm max-w-none">
+          <p className="text-sm text-gray-600">{output.choices[0].message.content}</p>
+        </div>
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/ChatDemo/ChatDemoOutput.tsx #####
+export const ChatOutput = ({ data }: { data: { choices: Array<any> } }) => (
+    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-sm font-medium text-gray-900 mb-2">Response</h4>
+        <div className="prose prose-sm max-w-none">
+            <p className="text-gray-600">{data.choices[0].message.content}</p>
+        </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/ChatDemo/ChatDemoOptions.tsx #####
+// ChatOptions.tsx
+interface ChatOptionsProps {
+  options: {
+    messages: Array<{ role: string; content: string; }>;
+    temperature?: number;
+    max_tokens?: number;
+  };
+  examples: Array<{ text: string; description: string; }>;
+  onChange: (options: any) => void;
+}
+
+export const ChatOptions = ({ options, examples, onChange }: ChatOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Message</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={3}
+            value={options.messages?.[options.messages.length - 1]?.content || ''}
+            onChange={(e) => {
+              const messages = [...(options.messages || [])];
+              if (messages.length === 0) {
+                messages.push({ role: 'user', content: e.target.value });
+              } else {
+                messages[messages.length - 1].content = e.target.value;
+              }
+              onChange({ ...options, messages });
+            }}
+            placeholder="Enter your message..."
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Temperature</label>
+          <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={options.temperature || 1}
+              onChange={(e) => onChange({ ...options, temperature: parseFloat(e.target.value) })}
+              className="mt-2 w-full"
+          />
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>Focused</span>
+            <span>{options.temperature || 1}</span>
+            <span>Creative</span>
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Max Tokens</label>
+          <input
+              type="number"
+              min="1"
+              max="4000"
+              value={options.max_tokens || 150}
+              onChange={(e) => onChange({ ...options, max_tokens: parseInt(e.target.value) })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Example Messages</label>
+        <div className="grid grid-cols-2 gap-2">
+          {examples.map((example, index) => (
+              <button
+                  key={index}
+                  className="p-2 text-left text-sm border border-gray-200 rounded-lg hover:border-blue-500 transition-colors"
+                  onClick={() => {
+                    onChange({
+                      ...options,
+                      messages: [{ role: 'user', content: example.text }]
+                    });
+                  }}
+              >
+                <strong className="block text-gray-700">{example.description}</strong>
+                <span className="text-gray-500 text-xs line-clamp-2">{example.text}</span>
+              </button>
+          ))}
+        </div>
+      </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/TranscriptionDemo/index.tsx #####
+import { DemoComponentProps } from '../../../types';
+
+export const TranscriptionDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="prose prose-sm max-w-none">
+          <p className="text-sm text-gray-600">{output.text}</p>
+          {output.words && (
+              <div className="mt-2 text-xs text-gray-500">
+                <div className="font-medium mb-1">Word Timestamps:</div>
+                <div className="space-y-1">
+                  {output.words.map((word, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>{word.word}</span>
+                        <span>{word.start.toFixed(2)}s - {word.end.toFixed(2)}s</span>
+                      </div>
+                  ))}
+                </div>
+              </div>
+          )}
+        </div>
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/TranscriptionDemo/TranscriptionDemoOutput.tsx #####
+export const TranscriptionOutput = ({ data }: { data: { text: string, words?: Array<any> } }) => (
+    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-sm font-medium text-gray-900 mb-2">Transcription Result</h4>
+        <p className="text-sm text-gray-600">{data.text}</p>
+        {data.words && (
+            <div className="mt-4">
+                <h5 className="text-xs font-medium text-gray-700 mb-2">Word Timestamps</h5>
+                <div className="max-h-40 overflow-y-auto">
+                    {data.words.map((word, index) => (
+                        <div key={index} className="flex justify-between text-xs text-gray-500">
+                            <span>{word.word}</span>
+                            <span>{word.start.toFixed(2)}s - {word.end.toFixed(2)}s</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/TranscriptionDemo/TranscriptionDemoOptions.tsx #####
+// TranscriptionOptions.tsx
+interface TranscriptionOptionsProps {
+  options: {
+    language?: string;
+    timestamp_granularity?: string[];
+    prompt?: string;
+  };
+  onChange: (options: any) => void;
+}
+
+export const TranscriptionOptions = ({ options, onChange }: TranscriptionOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Audio File</label>
+        <input
+            type="file"
+            accept="audio/*"
+            className="mt-1 block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onChange({ ...options, file });
+              }
+            }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Language (Optional)</label>
+          <input
+              type="text"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="en, es, fr, etc."
+              value={options.language || ''}
+              onChange={(e) => onChange({ ...options, language: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Timestamp Granularity</label>
+          <div className="mt-2 space-x-4">
+            <label className="inline-flex items-center">
+              <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  checked={options.timestamp_granularity?.includes('word')}
+                  onChange={(e) => {
+                    const granularity = options.timestamp_granularity || [];
+                    if (e.target.checked) {
+                      onChange({ ...options, timestamp_granularity: [...granularity, 'word'] });
+                    } else {
+                      onChange({
+                        ...options,
+                        timestamp_granularity: granularity.filter(g => g !== 'word')
+                      });
+                    }
+                  }}
+              />
+              <span className="ml-2 text-sm text-gray-600">Word-level</span>
+            </label>
+            <label className="inline-flex items-center">
+              <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  checked={options.timestamp_granularity?.includes('segment')}
+                  onChange={(e) => {
+                    const granularity = options.timestamp_granularity || [];
+                    if (e.target.checked) {
+                      onChange({ ...options, timestamp_granularity: [...granularity, 'segment'] });
+                    } else {
+                      onChange({
+                        ...options,
+                        timestamp_granularity: granularity.filter(g => g !== 'segment')
+                      });
+                    }
+                  }}
+              />
+              <span className="ml-2 text-sm text-gray-600">Segment-level</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/AudioDemo/index.tsx #####
+import { DemoComponentProps } from '../../../types';
+
+export const AudioDemo = ({ output }: DemoComponentProps) => {
+  if (!output) return null;
+
+  return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <audio
+            controls
+            className="w-full"
+            style={{ height: '40px' }}
+        >
+          <source src={output.audio_url} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+  );
+};
+
+
+##### Pfad: ./src/components/demos/AudioDemo/AudioDemoOutput.tsx #####
+export const AudioOutput = ({ data }: { data: { audio_url: string } }) => (
+    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <audio
+            controls
+            className="w-full"
+            style={{ height: '40px' }}
+        >
+            <source src={data.audio_url} type="audio/mpeg" />
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+);
+
+
+##### Pfad: ./src/components/demos/AudioDemo/AudioDemoOptions.tsx #####
+// AudioOptions.tsx
+interface AudioOptionsProps {
+  options: {
+    input: string;
+    voice: string;
+    speed: number;
+    model?: string;
+  };
+  onChange: (options: any) => void;
+}
+
+export const AudioOptions = ({ options, onChange }: AudioOptionsProps) => (
+    <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Text to Speak</label>
+        <textarea
+            className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={3}
+            value={options.input}
+            onChange={(e) => onChange({ ...options, input: e.target.value })}
+            placeholder="Enter the text you want to convert to speech..."
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700">Voice</label>
+          <select
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              value={options.voice}
+              onChange={(e) => onChange({ ...options, voice: e.target.value })}
+          >
+            <option value="alloy">Alloy - Neutral and balanced</option>
+            <option value="echo">Echo - Smooth and natural</option>
+            <option value="fable">Fable - British accent</option>
+            <option value="onyx">Onyx - Deep and authoritative</option>
+            <option value="nova">Nova - Friendly and upbeat</option>
+            <option value="shimmer">Shimmer - Clear and expressive</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Speed</label>
+          <div className="mt-1">
+            <input
+                type="range"
+                min="0.25"
+                max="4.0"
+                step="0.25"
+                value={options.speed}
+                onChange={(e) => onChange({ ...options, speed: parseFloat(e.target.value) })}
+                className="w-full"
+            />
+            <div className="text-sm text-gray-500 mt-1 text-center">{options.speed}x</div>
+          </div>
+        </div>
+      </div>
+    </div>
+);
+
+
+
+##### Pfad: ./src/components/CodeBlock.tsx #####
+import { Check, Copy } from 'lucide-react';
+import { useState } from 'react';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+
+interface CodeBlockProps {
+  code: string;
+}
+
+export function CodeBlock({ code }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+      >
+        {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} className="text-gray-400" />}
+      </button>
+      <SyntaxHighlighter
+        language="python"
+        style={atomOneDark}
+        className="rounded-lg !bg-gray-900 !p-4"
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
+
+##### Pfad: ./src/vite-env.d.ts #####
+/// <reference types="vite/client" />
+
+
+
+##### Pfad: ./src/data/mockData.ts #####
+export const mockApiResponses = {
+  dalle: {
+    url: "https://images.unsplash.com/photo-1703631934792-fa1ce2f02a00?w=800&auto=format&fit=crop",
+    revised_prompt: "A serene mountain landscape at sunset"
+  },
+  tts: {
+    audio_url: "https://example.com/audio.mp3",
+    duration: 3.5
+  },
+  whisper: {
+    text: "Hello, this is a transcription of the audio file.",
+    confidence: 0.98
+  },
+  moderation: {
+    flagged: false,
+    categories: {
+      hate: false,
+      "hate/threatening": false,
+      "self-harm": false,
+      sexual: false,
+      "sexual/minors": false,
+      violence: false,
+      "violence/graphic": false
+    },
+    scores: {
+      hate: 0.0,
+      "hate/threatening": 0.0,
+      "self-harm": 0.0,
+      sexual: 0.0,
+      "sexual/minors": 0.0,
+      violence: 0.0,
+      "violence/graphic": 0.0
+    }
+  },
+  gpt4: {
+    response: "This is a quick response from GPT-4.",
+    finish_reason: "stop",
+    usage: {
+      prompt_tokens: 10,
+      completion_tokens: 20,
+      total_tokens: 30
+    }
+  }
+};
+
+
